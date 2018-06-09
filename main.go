@@ -19,6 +19,11 @@ const (
 	blynkHost   = "blynk-cloud.com"
 )
 
+const (
+	selfScheme = "https"
+	selfHost   = "blynk-proxy.herokuapp.com"
+)
+
 var blynkCert = []byte(`-----BEGIN CERTIFICATE-----
 MIID5TCCAs2gAwIBAgIJAIHSnb+cv4ECMA0GCSqGSIb3DQEBCwUAMIGIMQswCQYD
 VQQGEwJVQTENMAsGA1UECAwES3lpdjENMAsGA1UEBwwES3lpdjELMAkGA1UECgwC
@@ -111,6 +116,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	for key, values := range resp.Header {
 		canonicalKey := textproto.CanonicalMIMEHeaderKey(key)
 		for _, value := range values {
+			if canonicalKey == "Location" {
+				value = RewriteURL(value)
+			}
 			header.Add(canonicalKey, value)
 		}
 	}
@@ -138,4 +146,19 @@ func CopyRequestHeaders(from, to *http.Request, headers []string) {
 			to.Header.Set(header, value)
 		}
 	}
+}
+
+// RewriteURL rewrites all blynk-cloud.com URLs to us.
+func RewriteURL(origURL string) string {
+	u, err := url.Parse(origURL)
+	if err != nil {
+		log.Print(err)
+		return origURL
+	}
+	if u.Host == blynkHost {
+		u.Scheme = selfScheme
+		u.Host = selfHost
+		return u.String()
+	}
+	return origURL
 }

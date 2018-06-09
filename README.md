@@ -57,7 +57,9 @@ If you don't trust me (you probably shouldn't),
 it's easy to sign up for a Heroku account yourself and deploy the code under
 your account.
 You won't get the nice `blynk-proxy.herokuapp.com` domain but everything else
-should work out of the box.
+should work out of the box
+(except you need to change `selfHost` in the code accordingly,
+but that's for a feature that is probably not used at all).
 
 Alternatively, you could also run this app on any (non-Heroku) server,
 you just need to set `$PORT` environment variable and run an HTTPS reverse-proxy
