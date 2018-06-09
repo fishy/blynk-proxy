@@ -32,3 +32,6 @@
 [[constraint]]
   branch = "master"
   name = "github.com/heroku/x"
+
+[metadata.heroku]
+  root-package = "github.com/fishy/blynk-proxy"
