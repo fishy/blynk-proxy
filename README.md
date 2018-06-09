@@ -58,3 +58,9 @@ it's easy to sign up for a Heroku account yourself and deploy the code under
 your account.
 You won't get the nice `blynk-proxy.herokuapp.com` domain but everything else
 should work out of the box.
+
+Alternatively, you could also run this app on any (non-Heroku) server,
+you just need to set `$PORT` environment variable and run an HTTPS reverse-proxy
+in front of it (e.g. [nginx](https://www.nginx.com/)).
+You probably want to remove the Heroku import in the code if you are not running
+it on Heroku.
