@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"crypto/x509"
-	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -46,8 +44,8 @@ k4MGb1zihKbIXUzsjslONK4FY5rlQUSwKJgEAVF0ClxB4g6dECm0ckc=
 -----END CERTIFICATE-----`)
 
 var requestHeadersToCopy = []string{
-	"User-Agent",
 	"Content-Type",
+	"User-Agent",
 }
 
 var client *http.Client
@@ -85,30 +83,27 @@ func main() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	newURL := &url.URL{
-		Scheme:   blynkScheme,
-		Host:     blynkHost,
+		Scheme: blynkScheme,
+		Host:   blynkHost,
+		// In incoming r.URL only these 2 fields are set:
 		Path:     r.URL.Path,
 		RawQuery: r.URL.RawQuery,
 	}
-	newBody, err := convertRequestBody(r.Body)
-	if checkError(w, err) {
-		return
-	}
-	req, err := http.NewRequest(r.Method, newURL.String(), newBody)
-	if checkError(w, err) {
+	req, err := http.NewRequest(r.Method, newURL.String(), r.Body)
+	if CheckError(w, err) {
 		return
 	}
 	req.Header.Set("X-Forwarded-For", r.RemoteAddr)
-	copyRequestHeaders(r, req, requestHeadersToCopy)
+	CopyRequestHeaders(r, req, requestHeadersToCopy)
 
 	resp, err := client.Do(req)
-	if checkError(w, err) {
+	if CheckError(w, err) {
 		return
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	if checkError(w, err) {
+	if CheckError(w, err) {
 		return
 	}
 
@@ -123,7 +118,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-func checkError(w http.ResponseWriter, err error) bool {
+// CheckError checks error. If error is non-nil, it writes HTTP status code 502
+// (bad gateway) and the error message to the response and returns true.
+func CheckError(w http.ResponseWriter, err error) bool {
 	if err == nil {
 		return false
 	}
@@ -133,22 +130,12 @@ func checkError(w http.ResponseWriter, err error) bool {
 	return true
 }
 
-func convertRequestBody(body io.ReadCloser) (io.ReadCloser, error) {
-	buf, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, err
-	}
-	if len(buf) == 0 {
-		return nil, nil
-	}
-	return ioutil.NopCloser(bytes.NewReader(buf)), nil
-}
-
-func copyRequestHeaders(r1, r2 *http.Request, headers []string) {
+// CopyRequestHeaders copies specified headers from one http.Request to another.
+func CopyRequestHeaders(from, to *http.Request, headers []string) {
 	for _, header := range headers {
-		value := r1.Header.Get(header)
+		value := from.Header.Get(header)
 		if value != "" {
-			r2.Header.Set(header, value)
+			to.Header.Set(header, value)
 		}
 	}
 }
