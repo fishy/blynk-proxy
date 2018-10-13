@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/fishy/blynk-proxy/lib/httpsproxy"
+	"github.com/fishy/httpsproxy"
 )
 
 const (
