@@ -1,28 +1,22 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"io/ioutil"
+	"fmt"
 	"log"
 	"net/http"
-	"net/textproto"
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/fishy/blynk-proxy/lib/httpsproxy"
 )
 
 const (
-	blynkScheme = "https"
-	blynkHost   = "blynk-cloud.com"
+	blynkHost  = "blynk-cloud.com"
+	selfURLEnv = "SELF_URL"
 )
 
-const (
-	selfScheme  = "https"
-	selfHostEnv = "SELF_HOST"
-)
-
-var blynkCert = []byte(`-----BEGIN CERTIFICATE-----
+const blynkCert = `-----BEGIN CERTIFICATE-----
 MIID5TCCAs2gAwIBAgIJAIHSnb+cv4ECMA0GCSqGSIb3DQEBCwUAMIGIMQswCQYD
 VQQGEwJVQTENMAsGA1UECAwES3lpdjENMAsGA1UEBwwES3lpdjELMAkGA1UECgwC
 SVQxEzARBgNVBAsMCkJseW5rIEluYy4xGDAWBgNVBAMMD2JseW5rLWNsb3VkLmNv
@@ -44,38 +38,30 @@ C98/l47OD6WtsqJKvCZ1lmKxY5aIro9FBPk8ktCOsbwEjE+nyr5wul+6CLFr+rnv
 eqmNBx1OqWel81D3tA7zPMA7vUItyWcFIXNjOCP+POy7TMxZuhuPMh5bVu+/cthl
 /Q9u/Z2lKl4CWV0Ivt2BtlN6iefva0e2AP/As+gfwjxrb0t11zSILLNJ+nxRIwg+
 k4MGb1zihKbIXUzsjslONK4FY5rlQUSwKJgEAVF0ClxB4g6dECm0ckc=
------END CERTIFICATE-----`)
-
-var requestHeadersToCopy = []string{
-	"Content-Type",
-	"User-Agent",
-}
-
-var client *http.Client
+-----END CERTIFICATE-----`
 
 func main() {
-	certPool, err := x509.SystemCertPool()
+	certPool, failed, err := httpsproxy.NewCertPool(blynkCert)
 	if err != nil {
-		log.Printf("Cannot get system cert pool: %v", err)
-		certPool = x509.NewCertPool()
+		log.Printf("WARNING: Cannot get system cert pool: %v", err)
 	}
-	certPool.AppendCertsFromPEM(blynkCert)
-
-	client = &http.Client{
-		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			// Don't follow any redirects
-			return http.ErrUseLastResponse
-		},
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: certPool,
-			},
-		},
-		Timeout: 30 * time.Second,
+	if len(failed) > 0 {
+		log.Printf("WARNING: Failed to add cert(s) to pool: %v", failed)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler)
+	selfURL, err := url.Parse(os.Getenv(selfURLEnv))
+	if err != nil {
+		log.Printf("WARNING: Cannot get parse self URL: %v", err)
+	}
+
+	mux := httpsproxy.ProxyMux(blynkHost, certPool, selfURL, 30*time.Second)
+	// AppEngine health check
+	mux.HandleFunc(
+		"/_ah/health",
+		func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, "healthy")
+		},
+	)
 
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -84,85 +70,4 @@ func main() {
 	}
 	log.Printf("Listening on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	newURL := &url.URL{
-		Scheme: blynkScheme,
-		Host:   blynkHost,
-		// In incoming r.URL only these 2 fields are set:
-		Path:     r.URL.Path,
-		RawQuery: r.URL.RawQuery,
-	}
-	req, err := http.NewRequest(r.Method, newURL.String(), r.Body)
-	if CheckError(w, err) {
-		return
-	}
-	req.Header.Set("X-Forwarded-For", r.RemoteAddr)
-	CopyRequestHeaders(r, req, requestHeadersToCopy)
-
-	resp, err := client.Do(req)
-	if CheckError(w, err) {
-		return
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if CheckError(w, err) {
-		return
-	}
-
-	header := w.Header()
-	for key, values := range resp.Header {
-		canonicalKey := textproto.CanonicalMIMEHeaderKey(key)
-		for _, value := range values {
-			if canonicalKey == "Location" {
-				value = RewriteURL(value, os.Getenv(selfHostEnv))
-			}
-			header.Add(canonicalKey, value)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-	w.Write(body)
-}
-
-// CheckError checks error. If error is non-nil, it writes HTTP status code 502
-// (bad gateway) and the error message to the response and returns true.
-func CheckError(w http.ResponseWriter, err error) bool {
-	if err == nil {
-		return false
-	}
-	log.Print(err)
-	w.WriteHeader(http.StatusBadGateway)
-	w.Write([]byte(err.Error()))
-	return true
-}
-
-// CopyRequestHeaders copies specified headers from one http.Request to another.
-func CopyRequestHeaders(from, to *http.Request, headers []string) {
-	for _, header := range headers {
-		value := from.Header.Get(header)
-		if value != "" {
-			to.Header.Set(header, value)
-		}
-	}
-}
-
-// RewriteURL rewrites all blynk-cloud.com URLs to us.
-func RewriteURL(origURL, selfHost string) string {
-	if selfHost == "" {
-		return origURL
-	}
-
-	u, err := url.Parse(origURL)
-	if err != nil {
-		log.Print(err)
-		return origURL
-	}
-	if u.Host == blynkHost {
-		u.Scheme = selfScheme
-		u.Host = selfHost
-		return u.String()
-	}
-	return origURL
 }

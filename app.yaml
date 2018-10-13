@@ -11,4 +11,4 @@ handlers:
   secure: always
 
 env_variables:
-  SELF_HOST: 'blynk-proxy.appspot.com'
+  SELF_URL: 'https://blynk-proxy.appspot.com'
