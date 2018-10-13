@@ -10,8 +10,6 @@ import (
 	"net/url"
 	"os"
 	"time"
-
-	_ "github.com/heroku/x/hmetrics/onload"
 )
 
 const (
@@ -21,7 +19,7 @@ const (
 
 const (
 	selfScheme = "https"
-	selfHost   = "blynk-proxy.herokuapp.com"
+	selfHost   = "blynk-proxy.appspot.com"
 )
 
 var blynkCert = []byte(`-----BEGIN CERTIFICATE-----
@@ -56,11 +54,6 @@ var requestHeadersToCopy = []string{
 var client *http.Client
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		log.Fatal("$PORT must be set")
-	}
-
 	certPool, err := x509.SystemCertPool()
 	if err != nil {
 		log.Printf("Cannot get system cert pool: %v", err)
@@ -83,6 +76,13 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler)
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		log.Printf("Defaulting to port %s", port)
+	}
+	log.Printf("Listening on port %s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))
 }
 

@@ -19,7 +19,7 @@ func TestRewriteURL(t *testing.T) {
 
 	// http blynk-cloud
 	orig = "http://blynk-cloud.com"
-	expect = "https://blynk-proxy.herokuapp.com"
+	expect = "https://blynk-proxy.appspot.com"
 	actual = lib.RewriteURL(orig)
 	if actual != expect {
 		t.Errorf("RewriteURL(%q) expected %q, got %q", orig, expect, actual)
@@ -27,7 +27,7 @@ func TestRewriteURL(t *testing.T) {
 
 	// https blynk-cloud
 	orig = "https://blynk-cloud.com/foo/bar?foo=bar&baz=qux#asdf"
-	expect = "https://blynk-proxy.herokuapp.com/foo/bar?foo=bar&baz=qux#asdf"
+	expect = "https://blynk-proxy.appspot.com/foo/bar?foo=bar&baz=qux#asdf"
 	actual = lib.RewriteURL(orig)
 	if actual != expect {
 		t.Errorf("RewriteURL(%q) expected %q, got %q", orig, expect, actual)

@@ -1,0 +1,10 @@
+runtime: go111
+instance_class: F1
+
+automatic_scaling:
+  min_pending_latency: 50ms
+  max_pending_latency: 500ms
+
+handlers:
+- url: /.*
+  script: _go_app
