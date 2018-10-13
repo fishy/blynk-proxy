@@ -18,8 +18,8 @@ const (
 )
 
 const (
-	selfScheme = "https"
-	selfHost   = "blynk-proxy.appspot.com"
+	selfScheme  = "https"
+	selfHostEnv = "SELF_HOST"
 )
 
 var blynkCert = []byte(`-----BEGIN CERTIFICATE-----
@@ -117,7 +117,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		canonicalKey := textproto.CanonicalMIMEHeaderKey(key)
 		for _, value := range values {
 			if canonicalKey == "Location" {
-				value = RewriteURL(value)
+				value = RewriteURL(value, os.Getenv(selfHostEnv))
 			}
 			header.Add(canonicalKey, value)
 		}
@@ -149,7 +149,11 @@ func CopyRequestHeaders(from, to *http.Request, headers []string) {
 }
 
 // RewriteURL rewrites all blynk-cloud.com URLs to us.
-func RewriteURL(origURL string) string {
+func RewriteURL(origURL, selfHost string) string {
+	if selfHost == "" {
+		return origURL
+	}
+
 	u, err := url.Parse(origURL)
 	if err != nil {
 		log.Print(err)

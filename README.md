@@ -53,8 +53,9 @@ it's easy to sign up for an Google Cloud account yourself and deploy the code
 under your account.
 You won't get the nice `blynk-proxy.appspot.com` domain but everything else
 should work out of the box
-(except you need to change `selfHost` in the code accordingly,
-but that's for a feature that is probably not used at all).
+(except you need to change `$SELF_HOST` environment variable defined in
+`app.yaml` file accordingly, but that's for a feature that is probably not used
+at all).
 
 Alternatively, you could also run this app on any (non-App-Engine) server,
 you just need to set `$PORT` environment variable and run an HTTPS reverse-proxy
