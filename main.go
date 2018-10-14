@@ -12,10 +12,12 @@ import (
 )
 
 const (
-	blynkHost  = "blynk-cloud.com"
+	blynkURL   = "https://blynk-cloud.com"
 	selfURLEnv = "SELF_URL"
 )
 
+// Get it by the following command:
+// openssl s_client -showcerts -connect blynk-cloud.com:443 </dev/null
 const blynkCert = `-----BEGIN CERTIFICATE-----
 MIID5TCCAs2gAwIBAgIJAIHSnb+cv4ECMA0GCSqGSIb3DQEBCwUAMIGIMQswCQYD
 VQQGEwJVQTENMAsGA1UECAwES3lpdjENMAsGA1UEBwwES3lpdjELMAkGA1UECgwC
@@ -40,21 +42,44 @@ eqmNBx1OqWel81D3tA7zPMA7vUItyWcFIXNjOCP+POy7TMxZuhuPMh5bVu+/cthl
 k4MGb1zihKbIXUzsjslONK4FY5rlQUSwKJgEAVF0ClxB4g6dECm0ckc=
 -----END CERTIFICATE-----`
 
+// AppEngine log will auto add date and time, so there's no need to double log
+// them in our own loggers.
+var (
+	infoLog  = log.New(os.Stderr, "I ", log.Lshortfile)
+	warnLog  = log.New(os.Stderr, "W ", log.Lshortfile)
+	errorLog = log.New(os.Stderr, "E ", log.Lshortfile)
+)
+
 func main() {
+
+	targetURL, err := url.Parse(blynkURL)
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	certPool, failed, err := httpsproxy.NewCertPool(blynkCert)
 	if err != nil {
-		log.Printf("WARNING: Cannot get system cert pool: %v", err)
+		warnLog.Printf("Cannot get system cert pool: %v", err)
 	}
 	if len(failed) > 0 {
-		log.Printf("WARNING: Failed to add cert(s) to pool: %v", failed)
+		warnLog.Printf("Failed to add cert(s) to pool: %v", failed)
 	}
 
 	selfURL, err := url.Parse(os.Getenv(selfURLEnv))
 	if err != nil {
-		log.Printf("WARNING: Cannot get parse self URL: %v", err)
+		warnLog.Printf("Cannot get parse self URL: %v", err)
 	}
 
-	mux := httpsproxy.ProxyMux(blynkHost, certPool, selfURL, 30*time.Second)
+	mux := httpsproxy.Mux(
+		httpsproxy.DefaultHTTPClient(
+			certPool,
+			30*time.Second,
+			httpsproxy.NoRedirCheckRedirectFunc,
+		),
+		targetURL,
+		selfURL,
+		errorLog,
+	)
 	// AppEngine health check
 	mux.HandleFunc(
 		"/_ah/health",
@@ -66,8 +91,8 @@ func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
-		log.Printf("Defaulting to port %s", port)
+		infoLog.Printf("Defaulting to port %s", port)
 	}
-	log.Printf("Listening on port %s", port)
-	log.Fatal(http.ListenAndServe(":"+port, mux))
+	infoLog.Printf("Listening on port %s", port)
+	infoLog.Fatal(http.ListenAndServe(":"+port, mux))
 }
