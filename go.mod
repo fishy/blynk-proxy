@@ -1,3 +1,5 @@
 module github.com/fishy/blynk-proxy
 
-require github.com/fishy/httpsproxy v0.2.0
+go 1.15
+
+require go.yhsif.com/httpsproxy v0.3.0

@@ -1,2 +1,2 @@
-github.com/fishy/httpsproxy v0.2.0 h1:ZPY/JB/rec1I5+ZwqtpWch54LksP5OvRvXYjnkFXjJs=
-github.com/fishy/httpsproxy v0.2.0/go.mod h1:eDBHo7o88Ei+8kG/CQ2DE0647wxxpIDi//jUz0rlflQ=
+go.yhsif.com/httpsproxy v0.3.0 h1:mKBxp/+vkSCHjome8SubTRCpy7HHj92WPupQyKf55Qw=
+go.yhsif.com/httpsproxy v0.3.0/go.mod h1:YKFvBPXG6cSQCzy2gAa6MsfSbY7rVEKZ+MWPQw74ygk=
